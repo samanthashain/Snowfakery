@@ -1,5 +1,6 @@
 from io import StringIO
 from unittest import mock
+from datetime import datetime
 
 from snowfakery.data_generator import generate
 from snowfakery.data_gen_exceptions import DataGenError
@@ -240,6 +241,20 @@ class TestTemplateFuncs:
         """
         generate(StringIO(yaml), {}, None)
         assert write_row.mock_calls[0][1][1]["a"] == "2012-01-01"
+
+    def test_now_variable(self, generated_rows):
+        yaml = """
+        - object : A
+          fields:
+            a: ${{now}}
+            b: ${{now}}
+        """
+        generate(StringIO(yaml), {}, None)
+        assert datetime.fromisoformat(generated_rows.table_values("A", 0, "a"))
+        assert datetime.fromisoformat(generated_rows.table_values("A", 0, "b"))
+        assert generated_rows.table_values("A", 0, "a") != generated_rows.table_values(
+            "A", 0, "b"
+        )
 
     @mock.patch(write_row_path)
     def test_old_syntax(self, write_row):
