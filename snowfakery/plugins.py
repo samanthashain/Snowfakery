@@ -97,12 +97,18 @@ class PluginContext:
         return self.interpreter.current_context.field_vars()
 
     def context_vars(self):
-        return self.interpreter.current_context.context_vars(
-            self.plugin.__class__.__name__
+        return self.interpreter.current_context.context_vars(id(self.plugin))
+
+    def local_vars(self):
+        return self.interpreter.current_context.local_vars.setdefault(
+            id(self.plugin), {}
         )
 
     def unique_context_identifier(self) -> str:
-        "An identifier that will be unique across iterations (but not portion invocations)"
+        """An identifier representing a template context that will be
+        unique across iterations (but not portion invocations). It
+        allows templates that do counting or iteration for a particular
+        template context."""
         return self.interpreter.current_context.unique_context_identifier
 
     def evaluate_raw(self, field_definition):
@@ -118,6 +124,10 @@ class PluginContext:
             return rc.simplify()
         else:
             raise f"Cannot simplify {field_definition}. Perhaps should have used evaluate_raw?"
+
+    @property
+    def current_filename(self):
+        return self.interpreter.current_context.current_template.filename
 
 
 def lazy(func: Any) -> Callable:
@@ -244,8 +254,8 @@ class PluginOption:
     def convert(self, value):
         try:
             return self.type(value)
-        except TypeError as e:
-            raise TypeError(
+        except (TypeError, ValueError) as e:
+            raise exc.DataGenTypeError(
                 f"{self.name} option is wrong type {type(value)} rather than {self.type}",
                 *e.args,
             )
